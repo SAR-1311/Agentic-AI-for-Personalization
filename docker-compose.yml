@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: .
+    container_name: agentic-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    image: python:3.11-slim
+    container_name: agentic-frontend
+    working_dir: /app
+    depends_on:
+      - backend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./frontend:/app
+    command: >
+      bash -c "pip install --no-cache-dir streamlit requests &&
+               streamlit run app.py --server.address 0.0.0.0 --server.port 8501"
+    restart: unless-stopped
