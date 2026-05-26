@@ -61,11 +61,20 @@ class Agent:
             trait = self.synthesis.synthesize(atom, current)
             if trait is None:
                 continue
-            supersede = bool(trait.__dict__.get("_contradicts_current", False))
-            self.memory.persona.upsert_trait(trait, supersede_existing=supersede)
+            supersedes_ids = trait.__dict__.get("_supersedes_ids", [])
+            # Insert the new trait without blunt same-type supersession...
+            self.memory.persona.upsert_trait(trait, supersede_existing=False)
+            # ...then supersede exactly the traits the synthesis flagged as
+            # outdated. These may span trait_types (cross-category transition).
+            res = self.memory.persona.supersede_by_ids(supersedes_ids, trait.id)
+            # Keep the vector store consistent: stale atoms backing a superseded
+            # trait should no longer surface in retrieval.
+            for ev_id in res["evidence_ids"]:
+                self.memory.ltm.soft_delete(ev_id, kind="superseded")
             synthesized.append({"trait_type": trait.trait_type,
                                 "value": trait.value,
-                                "superseded_existing": supersede})
+                                "superseded_existing": res["count"] > 0,
+                                "superseded_count": res["count"]})
             current = self.memory.persona.get_active(user_id)  # refresh
 
         # 4) Importance-weighted retrieval

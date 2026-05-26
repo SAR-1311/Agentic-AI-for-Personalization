@@ -85,6 +85,30 @@ class PersonaDB:
             s.add(row)
             return trait.id
 
+    def supersede_by_ids(self, trait_ids: list[str], superseded_by: str) -> dict:
+        """Mark specific traits (by id) superseded, regardless of trait_type.
+
+        Enables cross-category life-transition reconciliation: a new dietary
+        trait can supersede a contradictory food *preference*, etc.
+        Returns {"count": n, "evidence_ids": [...]} so the caller can also
+        soft-delete the backing memory atoms from the vector store.
+        """
+        if not trait_ids:
+            return {"count": 0, "evidence_ids": []}
+        evidence_ids: list[str] = []
+        with self._session() as s:
+            rows = s.execute(select(PersonaTraitRow).where(
+                PersonaTraitRow.id.in_(trait_ids),
+                PersonaTraitRow.superseded == False,
+            )).scalars().all()
+            for r in rows:
+                r.superseded = True
+                r.superseded_by = superseded_by
+                r.updated_at = datetime.utcnow()
+                if r.evidence:
+                    evidence_ids.extend(e for e in r.evidence.split(",") if e)
+            return {"count": len(rows), "evidence_ids": evidence_ids}
+
     def get_active(self, user_id: str) -> list[dict]:
         with self._session() as s:
             rows = s.execute(select(PersonaTraitRow).where(

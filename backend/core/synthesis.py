@@ -18,22 +18,29 @@ SYNTHESIS_SYSTEM = """You consolidate a memory atom about a user into a single
 persona trait suitable for long-term storage. The trait should be concise,
 generalisable, and stated as a stable property of the user.
 
-Detect contradictions: if the new atom contradicts a current trait of the same
-type, mark `contradicts_current=true` and the new value should REPLACE the old.
+You are also given the user's CURRENT persona traits, each with an index like [0].
+Decide which of those existing traits this new atom makes outdated or
+contradicts. A new trait supersedes an existing one when they cannot both be
+true at the same time — REGARDLESS of trait_type. For example, a dietary change
+("does not eat chicken") supersedes a food preference that depends on it
+("enjoys chicken biryani"), but does NOT supersede a preference that is still
+valid ("enjoys biryani", which may be vegetable biryani). Only list indices you
+are confident are now outdated.
 
 Return STRICT JSON:
 {
   "trait_type": "<one of: preference|dietary|occupation|health|relationship|goal|dislike|routine|fact|other>",
   "value": "<concise stable description, third person singular>",
   "confidence": <0-1>,
-  "contradicts_current": <bool>
+  "supersedes": [<indices of current traits this new trait makes outdated; [] if none>]
 }
 
 Examples:
-  atom="loves pasta", current_traits=[] ->
-    {"trait_type": "preference", "value": "enjoys pasta", "confidence": 0.9, "contradicts_current": false}
-  atom="started eating meat after seeing doctor", current_traits=["dietary: vegetarian"] ->
-    {"trait_type": "dietary", "value": "eats meat (recently changed from vegetarian)", "confidence": 0.85, "contradicts_current": true}
+  atom="loves pasta", current=(none) ->
+    {"trait_type": "preference", "value": "enjoys pasta", "confidence": 0.9, "supersedes": []}
+  atom="stopped eating chicken",
+  current=[0] preference: enjoys chicken biryani / [1] occupation: software engineer ->
+    {"trait_type": "dietary", "value": "does not eat chicken (recently changed)", "confidence": 0.85, "supersedes": [0]}
 """
 
 
@@ -46,13 +53,14 @@ class SynthesisLayer:
 
         Returns None if the atom is too thin to form a trait.
         """
-        ctx_lines = [f"- {t['trait_type']}: {t['value']}" for t in current_traits[:20]]
+        recent = current_traits[:20]
+        ctx_lines = [f"[{i}] {t['trait_type']}: {t['value']}" for i, t in enumerate(recent)]
         ctx = "\n".join(ctx_lines) if ctx_lines else "(none)"
         prompt = (
             f"User memory atom: \"{atom.text}\"\n"
             f"Atom trait_type (hint): {atom.trait_type}\n"
             f"Atom confidence: {atom.confidence:.2f}\n\n"
-            f"Current persona traits:\n{ctx}\n"
+            f"Current persona traits (indexed):\n{ctx}\n"
         )
         out = self.llm.generate(
             prompt=prompt, system=SYNTHESIS_SYSTEM,
@@ -70,8 +78,20 @@ class SynthesisLayer:
                 evidence=[atom.id],
                 confidence=float(parsed.get("confidence", atom.confidence)),
             )
-            # Stash whether to supersede on the trait (consumed by caller).
-            trait.__dict__["_contradicts_current"] = bool(parsed.get("contradicts_current", False))
+            # Map LLM-returned indices back to actual trait IDs to supersede.
+            # This allows cross-type supersession (e.g. a dietary change
+            # invalidating a food preference), not just same-type replacement.
+            supersede_idxs = parsed.get("supersedes", [])
+            supersedes_ids: list[str] = []
+            if isinstance(supersede_idxs, list):
+                for idx in supersede_idxs:
+                    try:
+                        i = int(idx)
+                    except (ValueError, TypeError):
+                        continue
+                    if 0 <= i < len(recent):
+                        supersedes_ids.append(recent[i]["id"])
+            trait.__dict__["_supersedes_ids"] = supersedes_ids
             return trait
         except Exception as e:
             logger.warning(f"Failed to build PersonaTrait: {e}")
