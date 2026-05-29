@@ -27,20 +27,30 @@ true at the same time — REGARDLESS of trait_type. For example, a dietary chang
 valid ("enjoys biryani", which may be vegetable biryani). Only list indices you
 are confident are now outdated.
 
+Also decide whether this atom merely RESTATES an existing trait that is still
+true (same meaning, no change). If so, set "reinforces" to that trait's index so
+the system strengthens it instead of storing a duplicate. A trait must not both
+reinforce and supersede the same index; if the atom genuinely restates, prefer
+"reinforces" and leave "supersedes" empty.
+
 Return STRICT JSON:
 {
   "trait_type": "<one of: preference|dietary|occupation|health|relationship|goal|dislike|routine|fact|other>",
   "value": "<concise stable description, third person singular>",
   "confidence": <0-1>,
-  "supersedes": [<indices of current traits this new trait makes outdated; [] if none>]
+  "supersedes": [<indices of current traits this new trait makes outdated; [] if none>],
+  "reinforces": <index of an existing trait this atom restates, or null>
 }
 
 Examples:
   atom="loves pasta", current=(none) ->
-    {"trait_type": "preference", "value": "enjoys pasta", "confidence": 0.9, "supersedes": []}
+    {"trait_type": "preference", "value": "enjoys pasta", "confidence": 0.9, "supersedes": [], "reinforces": null}
   atom="stopped eating chicken",
   current=[0] preference: enjoys chicken biryani / [1] occupation: software engineer ->
-    {"trait_type": "dietary", "value": "does not eat chicken (recently changed)", "confidence": 0.85, "supersedes": [0]}
+    {"trait_type": "dietary", "value": "does not eat chicken (recently changed)", "confidence": 0.85, "supersedes": [0], "reinforces": null}
+  atom="i could honestly eat biryani daily",
+  current=[0] preference: enjoys biryani ->
+    {"trait_type": "preference", "value": "enjoys biryani", "confidence": 0.9, "supersedes": [], "reinforces": 0}
 """
 
 
@@ -92,6 +102,17 @@ class SynthesisLayer:
                     if 0 <= i < len(recent):
                         supersedes_ids.append(recent[i]["id"])
             trait.__dict__["_supersedes_ids"] = supersedes_ids
+            # Map the optional reinforces index to a concrete trait id.
+            reinforces_id = None
+            ridx = parsed.get("reinforces", None)
+            if ridx is not None:
+                try:
+                    i = int(ridx)
+                    if 0 <= i < len(recent) and recent[i]["id"] not in supersedes_ids:
+                        reinforces_id = recent[i]["id"]
+                except (ValueError, TypeError):
+                    reinforces_id = None
+            trait.__dict__["_reinforces_id"] = reinforces_id
             return trait
         except Exception as e:
             logger.warning(f"Failed to build PersonaTrait: {e}")

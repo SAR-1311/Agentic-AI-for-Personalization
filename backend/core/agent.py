@@ -61,18 +61,31 @@ class Agent:
             trait = self.synthesis.synthesize(atom, current)
             if trait is None:
                 continue
+            reinforces_id = trait.__dict__.get("_reinforces_id")
             supersedes_ids = trait.__dict__.get("_supersedes_ids", [])
-            # Insert the new trait without blunt same-type supersession...
+
+            # (a) Restatement → strengthen the existing trait, don't duplicate.
+            if reinforces_id:
+                res = self.memory.persona.reinforce_trait(
+                    reinforces_id, atom.id, trait.confidence)
+                if res is not None:
+                    synthesized.append({"trait_type": trait.trait_type,
+                                        "value": res["value"],
+                                        "reinforced": True,
+                                        "reinforcement_count": res["reinforcement_count"],
+                                        "superseded_count": 0})
+                    current = self.memory.persona.get_active(user_id)
+                    continue
+                # trait vanished/superseded since synthesis → fall through to insert
+
+            # (b) New or contradictory trait → insert, then supersede outdated ones.
             self.memory.persona.upsert_trait(trait, supersede_existing=False)
-            # ...then supersede exactly the traits the synthesis flagged as
-            # outdated. These may span trait_types (cross-category transition).
             res = self.memory.persona.supersede_by_ids(supersedes_ids, trait.id)
-            # Keep the vector store consistent: stale atoms backing a superseded
-            # trait should no longer surface in retrieval.
             for ev_id in res["evidence_ids"]:
                 self.memory.ltm.soft_delete(ev_id, kind="superseded")
             synthesized.append({"trait_type": trait.trait_type,
                                 "value": trait.value,
+                                "reinforced": False,
                                 "superseded_existing": res["count"] > 0,
                                 "superseded_count": res["count"]})
             current = self.memory.persona.get_active(user_id)  # refresh

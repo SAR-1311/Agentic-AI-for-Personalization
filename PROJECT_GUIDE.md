@@ -1,7 +1,7 @@
 # Agentic AI for Personalization — Complete Project Guide
 
 > **End-to-end implementation roadmap aligned with the Informatics dissertation proposal (UID: S2845408).**
-> Project: An agentic memory framework with a Reasoning Gatekeeper, hierarchical memory, and controlled forgetting that turns a stateless LLM into a long-term personalized companion.
+> Project: An agentic memory framework with a Reasoning Gatekeeper, hierarchical memory and controlled forgetting that turns a stateless LLM into a long-term personalized companion.
 
 ---
 

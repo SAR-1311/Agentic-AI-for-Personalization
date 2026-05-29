@@ -44,8 +44,10 @@ class PersonaTrait(BaseModel):
     value: str
     evidence: list[str] = []      # supporting memory atom ids
     confidence: float = 0.0
+    reinforcement_count: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_reinforced_at: datetime = Field(default_factory=datetime.utcnow)
     superseded_by: Optional[str] = None
 
 

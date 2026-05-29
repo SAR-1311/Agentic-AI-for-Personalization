@@ -11,8 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import (Boolean, Column, DateTime, Float, String, Text,
-                        create_engine, select, update)
+from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,Text, create_engine, select, text, update)
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from backend.config import get_settings
@@ -30,8 +29,10 @@ class PersonaTraitRow(Base):
     value = Column(Text, nullable=False)
     evidence = Column(Text, default="")          # comma-separated atom ids
     confidence = Column(Float, default=0.5)
+    reinforcement_count = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    last_reinforced_at = Column(DateTime, default=datetime.utcnow)
     superseded = Column(Boolean, default=False)
     superseded_by = Column(String, default=None)
 
@@ -42,7 +43,21 @@ class PersonaDB:
         Path(s.sqlite_path).parent.mkdir(parents=True, exist_ok=True)
         self.engine = create_engine(f"sqlite:///{s.sqlite_path}", echo=False, future=True)
         Base.metadata.create_all(self.engine)
+        self._ensure_columns()
         self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
+
+    def _ensure_columns(self) -> None:
+        """Add new columns to a pre-existing table (SQLite create_all won't).
+
+        Keeps older persona.db files working without a manual wipe.
+        """
+        with self.engine.connect() as conn:
+            cols = {row[1] for row in conn.execute(text("PRAGMA table_info(persona_traits)"))}
+            if "reinforcement_count" not in cols:
+                conn.execute(text("ALTER TABLE persona_traits ADD COLUMN reinforcement_count INTEGER DEFAULT 1"))
+            if "last_reinforced_at" not in cols:
+                conn.execute(text("ALTER TABLE persona_traits ADD COLUMN last_reinforced_at DATETIME"))
+            conn.commit()
 
     @contextmanager
     def _session(self) -> Iterator[Session]:
@@ -78,12 +93,43 @@ class PersonaDB:
                 value=trait.value,
                 evidence=",".join(trait.evidence),
                 confidence=trait.confidence,
+                reinforcement_count=1,
                 created_at=trait.created_at,
                 updated_at=trait.updated_at,
+                last_reinforced_at=trait.created_at,
                 superseded=False,
             )
             s.add(row)
             return trait.id
+
+    def reinforce_trait(self, trait_id: str, evidence_atom_id: str | None = None,
+                        confidence: float | None = None) -> dict | None:
+        """Strengthen an existing trait instead of duplicating it.
+
+        Increments the reinforcement count (the persona-level analogue of the
+        Gatekeeper's frequency f(m)), nudges confidence toward 1.0, refreshes
+        the reinforcement timestamp (which resets temporal decay in Phase 3),
+        and links the new supporting atom as evidence.
+        Returns a small summary, or None if the trait is missing/superseded.
+        """
+        with self._session() as s:
+            r = s.get(PersonaTraitRow, trait_id)
+            if r is None or r.superseded:
+                return None
+            r.reinforcement_count = (r.reinforcement_count or 1) + 1
+            now = datetime.utcnow()
+            r.last_reinforced_at = now
+            r.updated_at = now
+            base = max(r.confidence or 0.0, confidence or 0.0)
+            r.confidence = min(1.0, base + 0.05)
+            if evidence_atom_id:
+                existing = r.evidence.split(",") if r.evidence else []
+                if evidence_atom_id not in existing:
+                    existing.append(evidence_atom_id)
+                    r.evidence = ",".join(e for e in existing if e)
+            return {"id": r.id, "value": r.value,
+                    "reinforcement_count": r.reinforcement_count,
+                    "confidence": r.confidence}
 
     def supersede_by_ids(self, trait_ids: list[str], superseded_by: str) -> dict:
         """Mark specific traits (by id) superseded, regardless of trait_type.
@@ -151,8 +197,10 @@ class PersonaDB:
             "value": r.value,
             "evidence": r.evidence.split(",") if r.evidence else [],
             "confidence": r.confidence,
+            "reinforcement_count": getattr(r, "reinforcement_count", 1),
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "last_reinforced_at": r.last_reinforced_at.isoformat() if getattr(r, "last_reinforced_at", None) else None,
             "superseded": r.superseded,
             "superseded_by": r.superseded_by,
         }
