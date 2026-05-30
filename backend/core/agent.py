@@ -35,7 +35,8 @@ If a retrieved memory contradicts something the user just said, trust the
 class Agent:
     def __init__(self):
         self.memory = Memory()
-        self.gatekeeper = Gatekeeper(vector_store=self.memory.ltm)
+        self.gatekeeper = Gatekeeper(vector_store=self.memory.ltm,
+                                     persona_db=self.memory.persona)
         self.synthesis = SynthesisLayer()
         self.forgetting = ForgettingEngine(self.memory.ltm, self.memory.persona)
         self.llm = get_llm()

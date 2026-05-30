@@ -85,30 +85,108 @@ Examples:
 class Gatekeeper:
     """Implements Eq. 1: I(m) = α·f(m) + β·c(m) + γ·e(m)."""
 
-    def __init__(self, vector_store: "VectorStore | None" = None):
+    def __init__(self, vector_store: "VectorStore | None" = None,
+                 persona_db: "PersonaDB | None" = None):
         s = get_settings()
         self.alpha = s.weight_frequency
         self.beta = s.weight_confidence
         self.gamma = s.weight_emotion
         self.threshold = s.importance_threshold
         self.vector_store = vector_store
+        self.persona_db = persona_db
         self.llm = get_llm()
-        self._interaction_count = 0   # used in f(m) denominator
+        # Per-user atom counter; replaces the old global counter so concurrent
+        # users no longer share a denominator in f(m).
+        self._user_count: dict[str, int] = {}
 
     # -------------------------------------------------------------------
     # Eq. 2 — Frequency f(m)
     # -------------------------------------------------------------------
-    def frequency(self, atom_text: str, user_id: str) -> float:
-        """f(m) = # similar atoms in LTM / total interactions.
+    def frequency(self, atom_text: str, user_id: str,
+                  trait_hint: str | None = None) -> float:
+        """Eq. 2 — recurrence of this concept for this user, in [0, 1].
 
-        Uses cosine similarity >= 0.85 as the 'same atom' threshold.
+        Phase-2 refinements:
+          * Per-user interaction counter (no cross-user pollution).
+          * Tiered surface similarity: matches above 0.85 count fully, 0.70-0.85
+            count at half weight, so paraphrases of an existing memory still
+            register.
+          * Persona-reinforcement bridge: a matching active trait that has been
+            reinforced k times contributes (k - 1) prior occurrences. Ties this
+            equation to the reinforcement_count introduced in Phase 2.1.
+          * Laplace smoothing (Beta(1, 1) prior): numerator +1 for the current
+            atom as one occurrence, denominator +2, which dampens cold-start
+            inflation without erasing first-mention signal.
         """
-        self._interaction_count += 1
+        self._user_count[user_id] = self._user_count.get(user_id, 0) + 1
+        n = self._user_count[user_id]
+
         if self.vector_store is None:
             return 0.0
-        similar = self.vector_store.count_similar(atom_text, user_id, sim_threshold=0.85)
-        # +1 because the current atom itself is one occurrence
-        return min(1.0, (similar + 1) / max(1, self._interaction_count))
+
+        strong = self.vector_store.count_similar(atom_text, user_id, sim_threshold=0.85)
+        loose = self.vector_store.count_similar(atom_text, user_id, sim_threshold=0.70)
+        sim_evidence = strong + 0.5 * max(0, loose - strong)
+
+        persona_evidence = self._persona_recurrence(atom_text, trait_hint, user_id)
+
+        occurrences = sim_evidence + persona_evidence + 1.0  # +1 for current atom
+        return min(1.0, occurrences / (n + 2.0))
+
+    # --- helper: bridge to Phase-2.1 reinforcement ---------------------
+    # Generic preference verbs/adverbs are stripped so matching is driven by
+    # content nouns (e.g. "biryani") rather than scaffolding ("enjoys", "every").
+    _STOPWORDS = {
+        "the","a","an","is","of","and","or","to","in","on","at","with","for",
+        "i","you","he","she","it","my","our","your","this","that","be","am",
+        "are","was","were","do","does","did","have","has","had","not","no",
+        # generic trait-construction verbs and adverbs
+        "enjoys","likes","loves","prefers","dislikes","hates","wants","needs",
+        "eats","eat","drinks","drink","plays","play","goes","gets","makes",
+        "really","absolutely","very","just","honestly","truly",
+        "every","day","daily","weekly","always","never","often","sometimes",
+        "could","would","should","might","may","can","will",
+    }
+
+    @classmethod
+    def _content_tokens(cls, s: str) -> set[str]:
+        return {w.lower().strip(".,!?;:'\"")
+                for w in (s or "").split()
+                if len(w) > 2 and w.lower() not in cls._STOPWORDS}
+
+    def _persona_recurrence(self, atom_text: str, trait_hint: str | None,
+                            user_id: str) -> float:
+        """Find an active persona trait that semantically matches this atom and
+        return its prior reinforcement count (reinforcement_count - 1).
+
+        Uses min-based overlap (Szymkiewicz-Simpson coefficient) on content
+        tokens, which handles short trait values robustly. No extra LLM call.
+        """
+        if self.persona_db is None:
+            return 0.0
+        try:
+            actives = self.persona_db.get_active(user_id)
+        except Exception:
+            return 0.0
+        if not actives:
+            return 0.0
+        atom_tokens = self._content_tokens(atom_text)
+        if not atom_tokens:
+            return 0.0
+        best = 0.0
+        for t in actives:
+            if trait_hint and t.get("trait_type") != trait_hint:
+                continue
+            v_tokens = self._content_tokens(t.get("value", ""))
+            if not v_tokens:
+                continue
+            shared = len(atom_tokens & v_tokens)
+            overlap = shared / min(len(atom_tokens), len(v_tokens))
+            if overlap >= 0.5 and shared >= 1:
+                recurrence = max(0, (t.get("reinforcement_count", 1) - 1))
+                if recurrence > best:
+                    best = float(recurrence)
+        return best
 
     # -------------------------------------------------------------------
     # Confidence c(m) — combine linguistic cues + LLM rating
@@ -169,7 +247,7 @@ class Gatekeeper:
         passed: list[MemoryAtom] = []
         rejected: list[MemoryAtom] = []
         for a in raw:
-            f = self.frequency(a["text"], user_id)
+            f = self.frequency(a["text"], user_id, trait_hint=a.get("trait_type"))
             c = self.confidence(a["text"], a["llm_confidence"])
             e = self.emotion(a["text"])
             I = self.importance(f, c, e)
