@@ -31,7 +31,7 @@ from evaluation.metrics import precision_at_k, retrieval_noise_ratio   # noqa: E
 
 
 USER_ID = "smoke_user"
-TOP_K = 5
+TOP_K = 3
 
 
 def _atom(text: str, importance: float, trait_type: str = "preference") -> MemoryAtom:
@@ -46,22 +46,28 @@ def _atom(text: str, importance: float, trait_type: str = "preference") -> Memor
 
 # (atom, set_of_relevance_tags). Decoys carry an empty set.
 SEED = [
-    # ---- food cluster: strongly-held, reinforced preferences ---------------
-    (_atom("loves chicken biryani", 0.82),                       {"food"}),
-    (_atom("could eat biryani every single day", 0.70),          {"food"}),
-    (_atom("enjoys Indian cuisine in general", 0.55),            {"food"}),
-    # ---- outdoor cluster: moderate-importance routines ---------------------
-    (_atom("goes hiking on weekends", 0.62, "routine"),          {"outdoor"}),
-    (_atom("loves the Scottish highlands", 0.58),                {"outdoor"}),
-    (_atom("owns a pair of trail-running shoes", 0.40, "fact"),  {"outdoor"}),
-    # ---- decoys with deliberately tempting surface overlap -----------------
-    # "prefers tea" shares the verb "prefers" with food prefs but is low-signal.
-    (_atom("prefers tea over coffee in the morning", 0.30),      set()),
-    (_atom("studies Informatics at Edinburgh", 0.50, "occupation"), set()),
-    (_atom("uses Python and TypeScript daily", 0.45, "routine"), set()),
-    (_atom("listens to lo-fi while working", 0.32),              set()),
-    (_atom("is learning Mandarin slowly", 0.28, "goal"),         set()),
-    (_atom("has a cat called Mochi", 0.42, "fact"),              set()),
+    # ---- food cluster: stable, high-importance preferences ----
+    (_atom("loves chicken biryani", 0.82),                            {"food"}),
+    (_atom("could eat biryani every single day", 0.70),               {"food"}),
+    (_atom("enjoys Indian cuisine in general", 0.55),                 {"food"}),
+    # ---- outdoor cluster: stable routines, moderate importance ----
+    (_atom("goes hiking on weekends", 0.62, "routine"),               {"outdoor"}),
+    (_atom("loves the Scottish highlands", 0.58),                     {"outdoor"}),
+    (_atom("owns a pair of trail-running shoes", 0.40, "fact"),       {"outdoor"}),
+    # ---- ADVERSARIAL food-adjacent decoys (lexically close, low signal) ----
+    # Pure cosine should rank these high (shared food vocabulary); the blend
+    # should demote them by importance, recovering precision on food queries.
+    (_atom("tried sushi once and didn't really enjoy it", 0.25, "dislike"), set()),
+    (_atom("considered going vegan briefly last year", 0.22, "goal"),       set()),
+    (_atom("watched a cooking show on Sunday", 0.20, "fact"),               set()),
+    # ---- ADVERSARIAL outdoor-adjacent decoys ----
+    (_atom("thought about trying yoga at some point", 0.22, "goal"),        set()),
+    (_atom("walked through the park yesterday", 0.20, "fact"),              set()),
+    # ---- distant decoys (semantically far; cosine already filters these) ----
+    (_atom("studies Informatics at Edinburgh", 0.50, "occupation"),         set()),
+    (_atom("uses Python and TypeScript daily", 0.45, "routine"),            set()),
+    (_atom("has a cat called Mochi", 0.42, "fact"),                         set()),
+    (_atom("is learning Mandarin slowly", 0.28, "goal"),                    set()),
 ]
 
 QUERIES = [
@@ -90,9 +96,12 @@ def main() -> None:
         label[atom.id] = tags
 
     configs = [
-        ("Pure cosine      (1.0 / 0.0)", 1.0, 0.0),
-        ("Agentic blend    (0.6 / 0.4)", 0.6, 0.4),
-        ("Importance heavy (0.4 / 0.6)", 0.4, 0.6),
+        ("Pure cosine      (1.00 / 0.00)", 1.0, 0.0),
+        ("Cosine-favoured  (0.90 / 0.10)", 0.9, 0.1),
+        ("Cosine-favoured  (0.80 / 0.20)", 0.8, 0.2),
+        ("Balanced         (0.70 / 0.30)", 0.7, 0.3),
+        ("Agentic blend    (0.60 / 0.40)", 0.6, 0.4),
+        ("Importance-heavy (0.40 / 0.60)", 0.4, 0.6),
     ]
 
     print("=" * 78)
