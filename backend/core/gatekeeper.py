@@ -23,6 +23,7 @@ from backend.utils.llm_client import get_llm, safe_json_parse
 from backend.utils.sentiment import emotional_intensity
 
 if TYPE_CHECKING:
+    from backend.storage.persona_db import PersonaDB
     from backend.storage.vector_db import VectorStore
 
 logger = logging.getLogger(__name__)
