@@ -20,17 +20,25 @@ from __future__ import annotations
 
 import os
 import tempfile
+import uuid
 
-# Isolate from your real data BEFORE importing anything that touches config.
-os.environ["SQLITE_PATH"] = tempfile.mktemp(suffix=".db", prefix="retr_smoke_")
-os.environ["CHROMA_PATH"] = tempfile.mkdtemp(prefix="retr_smoke_chroma_")
+# Isolate from real data BEFORE importing anything that touches config.
+# IMPORTANT: pydantic-settings reads env vars by *Settings field name*,
+# uppercased. The chroma path field is `chroma_persist_dir`, so the env var
+# must be CHROMA_PERSIST_DIR — CHROMA_PATH would be silently ignored and the
+# test would pollute your real ./data/chroma.
+os.environ["SQLITE_PATH"]        = tempfile.mktemp(suffix=".db", prefix="retr_smoke_")
+os.environ["CHROMA_PERSIST_DIR"] = tempfile.mkdtemp(prefix="retr_smoke_chroma_")
 
-from backend.models.schemas import MemoryAtom                          # noqa: E402
-from backend.storage.vector_db import VectorStore                      # noqa: E402
-from evaluation.metrics import precision_at_k, retrieval_noise_ratio   # noqa: E402
+from backend.config import get_settings                              # noqa: E402
+from backend.models.schemas import MemoryAtom                        # noqa: E402
+from backend.storage.vector_db import VectorStore                    # noqa: E402
+from evaluation.metrics import precision_at_k, retrieval_noise_ratio # noqa: E402
 
 
-USER_ID = "smoke_user"
+# Defence-in-depth: unique user id per run, so even if isolation somehow
+# fails again the smoke test can't accidentally retrieve old atoms.
+USER_ID = f"smoke_{uuid.uuid4().hex[:8]}"
 TOP_K = 3
 
 
@@ -88,6 +96,20 @@ def _retrieve(vs: VectorStore, query: str, sim_w: float, imp_w: float, k: int):
 
 
 def main() -> None:
+    s = get_settings()
+    print("=" * 78)
+    print("Retrieval smoke test")
+    print("=" * 78)
+    print(f"  user_id            = {USER_ID}")
+    print(f"  chroma_persist_dir = {s.chroma_persist_dir}")
+    print(f"  sqlite_path        = {s.sqlite_path}")
+    if "retr_smoke_" not in s.chroma_persist_dir:
+        print()
+        print("  !!! WARNING: chroma_persist_dir does NOT look like a temp path.")
+        print("  !!! Isolation may have failed. Aborting to avoid polluting data.")
+        return
+    print()
+
     vs = VectorStore()
 
     label: dict[str, set[str]] = {}
