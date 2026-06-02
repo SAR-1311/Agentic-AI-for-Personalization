@@ -1,21 +1,3 @@
-"""Retrieval smoke test — empirically compares the agentic importance-weighted
-blend against a pure-cosine baseline on a controlled synthetic memory store.
-
-Outputs a Precision@K / RNR table that the dissertation can cite. This is NOT
-the headline PersonaMem-v2 evaluation; it's a fast, free, reproducible sanity
-check that the importance weighting actually helps when noisy decoys share
-surface vocabulary with the user's high-value preferences.
-
-Run:
-    python -m evaluation.retrieval_smoke
-
-What it shows for the dissertation:
-    Pure cosine ranks by embedding similarity alone — it can be fooled by
-    incidental lexical overlap (e.g. a low-importance "prefers tea" atom
-    ranking above a strongly-held food preference). The agentic blend uses
-    the gatekeeper's importance score as a tiebreaker, lifting durable
-    high-signal memories above noisy near-matches.
-"""
 from __future__ import annotations
 
 import os

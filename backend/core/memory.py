@@ -1,9 +1,3 @@
-"""Active Context (Short-Term Memory) and the public Memory facade.
-
-The STM is a per-user deque of recent turns. The LTM is delegated to ChromaDB
-via VectorStore. This module exposes the unified `Memory` interface that the
-agent uses.
-"""
 from __future__ import annotations
 
 from collections import deque

@@ -1,16 +1,3 @@
-"""Reasoning Gatekeeper — Eq. 1 of the proposal:
-
-    I(m) = α · f(m) + β · c(m) + γ · e(m)
-
-For each user utterance the gatekeeper:
-  1. Asks the LLM to extract candidate "memory atoms" (statements of fact /
-     preference / event) with structured output.
-  2. Computes f(m), c(m), e(m) for each atom.
-  3. Returns only atoms whose I(m) >= IMPORTANCE_THRESHOLD.
-
-This is the core innovation that distinguishes the system from flat-RAG: noise
-is filtered *before* it reaches storage.
-"""
 from __future__ import annotations
 
 import logging

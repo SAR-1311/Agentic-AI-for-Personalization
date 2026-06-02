@@ -1,8 +1,3 @@
-"""Synthesis Layer — turns raw memory atoms into structured persona traits.
-
-Implements the proposal's §3.1 'Synthesis Layer' that 'identifies implicit
-user traits' and feeds them into the Structured Persona Profile.
-"""
 from __future__ import annotations
 
 import logging
@@ -13,46 +8,11 @@ from backend.utils.llm_client import get_llm, safe_json_parse
 
 logger = logging.getLogger(__name__)
 
-
-SYNTHESIS_SYSTEM = """You consolidate a memory atom about a user into a single
-persona trait suitable for long-term storage. The trait should be concise,
-generalisable, and stated as a stable property of the user.
-
-You are also given the user's CURRENT persona traits, each with an index like [0].
-Decide which of those existing traits this new atom makes outdated or
-contradicts. A new trait supersedes an existing one when they cannot both be
-true at the same time — REGARDLESS of trait_type. For example, a dietary change
-("does not eat chicken") supersedes a food preference that depends on it
-("enjoys chicken biryani"), but does NOT supersede a preference that is still
-valid ("enjoys biryani", which may be vegetable biryani). Only list indices you
-are confident are now outdated.
-
-Also decide whether this atom merely RESTATES an existing trait that is still
-true (same meaning, no change). If so, set "reinforces" to that trait's index so
-the system strengthens it instead of storing a duplicate. A trait must not both
-reinforce and supersede the same index; if the atom genuinely restates, prefer
-"reinforces" and leave "supersedes" empty.
-
-Return STRICT JSON:
-{
-  "trait_type": "<one of: preference|dietary|occupation|health|relationship|goal|dislike|routine|fact|other>",
-  "value": "<concise stable description, third person singular>",
-  "confidence": <0-1>,
-  "supersedes": [<indices of current traits this new trait makes outdated; [] if none>],
-  "reinforces": <index of an existing trait this atom restates, or null>
-}
-
-Examples:
-  atom="loves pasta", current=(none) ->
-    {"trait_type": "preference", "value": "enjoys pasta", "confidence": 0.9, "supersedes": [], "reinforces": null}
-  atom="stopped eating chicken",
-  current=[0] preference: enjoys chicken biryani / [1] occupation: software engineer ->
-    {"trait_type": "dietary", "value": "does not eat chicken (recently changed)", "confidence": 0.85, "supersedes": [0], "reinforces": null}
-  atom="i could honestly eat biryani daily",
-  current=[0] preference: enjoys biryani ->
-    {"trait_type": "preference", "value": "enjoys biryani", "confidence": 0.9, "supersedes": [], "reinforces": 0}
+SYNTHESIS_SYSTEM = """You are a persona synthesis assistant.
+Given a user memory atom and the current persona traits, return a single JSON object only.
+Do not include any markdown fences, explanation text, or additional keys beyond the requested structure.
+Use the existing atom trait_type as a hint and only include supersedes/reinforces indices if applicable.
 """
-
 
 class SynthesisLayer:
     def __init__(self):
@@ -71,6 +31,11 @@ class SynthesisLayer:
             f"Atom trait_type (hint): {atom.trait_type}\n"
             f"Atom confidence: {atom.confidence:.2f}\n\n"
             f"Current persona traits (indexed):\n{ctx}\n"
+        )
+        prompt += (
+            "\nRespond with valid JSON only. The object should look like:\n"
+            "{\n  \"trait_type\": \"...\",\n  \"value\": \"...\",\n  \"confidence\": 0.0,\n  \"supersedes\": [0],\n  \"reinforces\": 0\n}\n"
+            "Include only keys relevant to this trait. If there is no supersession or reinforcement, omit those fields or use empty/null values."
         )
         out = self.llm.generate(
             prompt=prompt, system=SYNTHESIS_SYSTEM,
