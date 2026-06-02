@@ -1,164 +1,255 @@
-"""PersonaMem(-v2) benchmark runner.
+"""PersonaMem v1 (32k) evaluation runner.
 
-Streams each dialogue through the agent, then asks the probe questions and
-scores the agent's persona JSON against ground truth.
+For each sampled multiple-choice question:
+  1. Resolves the shared_context_id -> the matching JSONL line and slices to
+     end_index_in_shared_context messages.
+  2. Builds the agent's memory by feeding the *user* messages from that slice
+     through agent.chat(..., generate_reply=False) — gatekeeper, synthesis, and
+     storage all run; reply generation is skipped to keep the run cheap.
+  3. Builds an MCQ prompt from user_question_or_message + all_options and asks
+     the agent (now reply-generating) to pick one option.
+  4. Parses the chosen letter and compares to correct_answer.
+  5. Reports per-question results plus headline accuracy.
 
 Usage:
-    python -m evaluation.personamem_eval --data data/personamem --out evaluation/results/personamem.csv
-
-NOTE: The exact field names in the public PersonaMem release may differ from
-those used here. Inspect the dataset first and adjust the `_extract_*` helpers
-below accordingly. The proposal indicates implicit + explicit trait annotations
-and probe questions per session.
+    python -m evaluation.personamem_eval                    # default: 5 shortest
+    python -m evaluation.personamem_eval --n 20             # 20 shortest
+    python -m evaluation.personamem_eval --n 20 --random    # random sample
+    python -m evaluation.personamem_eval --output runs/pm.json
 """
 from __future__ import annotations
 
 import argparse
-import csv
 import json
-import logging
+import os
+import re
+import sys
+import tempfile
+import time
 from pathlib import Path
-from typing import Any
-from uuid import uuid4
 
-from tqdm import tqdm
+# Isolate from real data BEFORE any backend import.
+os.environ["SQLITE_PATH"]        = tempfile.mktemp(suffix=".db", prefix="pm_eval_")
+os.environ["CHROMA_PERSIST_DIR"] = tempfile.mkdtemp(prefix="pm_eval_chroma_")
 
-from backend.core.agent import Agent
-from evaluation.metrics import precision_at_k, recall_at_k, trait_f1
+import pandas as pd                                     # noqa: E402
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from backend.config import get_settings                 # noqa: E402
+from backend.core.agent import Agent                    # noqa: E402
 
+DATA_DIR = Path("data/personamem")
+QUESTIONS_CSV = DATA_DIR / "questions_32k.csv"
+CONTEXTS_JSONL = DATA_DIR / "shared_contexts_32k.jsonl"
 
-def _load_personamem(data_dir: Path) -> list[dict]:
-    """Load the dataset. Adjust to whichever JSON / parquet format ships."""
-    files = list(data_dir.glob("*.json")) + list(data_dir.glob("*.jsonl"))
-    if not files:
-        raise FileNotFoundError(f"No PersonaMem files found in {data_dir}. "
-                                f"Run data/download_personamem.py first.")
-    items: list[dict] = []
-    for f in files:
-        if f.suffix == ".jsonl":
-            with f.open() as fh:
-                items.extend(json.loads(line) for line in fh if line.strip())
-        else:
-            with f.open() as fh:
-                payload = json.load(fh)
-                items.extend(payload if isinstance(payload, list) else [payload])
-    return items
+LETTER_RE = re.compile(r"\(([a-dA-D])\)")
 
 
-def _extract_dialogue(item: dict) -> list[dict]:
-    """Adapt this to the actual schema. Expected output: [{role, text}, …]."""
-    if "dialogue" in item:
-        return item["dialogue"]
-    if "messages" in item:
-        return item["messages"]
-    if "turns" in item:
-        return [{"role": t.get("role", "user"), "text": t.get("text", t.get("content", ""))}
-                for t in item["turns"]]
-    return []
+def _build_context_index() -> dict[str, list[dict]]:
+    """Index shared contexts by their content-hash id.
+
+    PersonaMem v1's actual file shape: JSONL where each line is a one-entry
+    JSON dict {hash: [messages]}. The hash matches the CSV's shared_context_id,
+    so lookup is direct.
+    """
+    file_size = CONTEXTS_JSONL.stat().st_size
+    print(f"  indexing {CONTEXTS_JSONL.name} ({file_size:,} bytes) ...")
+
+    by_hash: dict[str, list[dict]] = {}
+    with open(CONTEXTS_JSONL, encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(rec, dict):
+                # Standard PersonaMem v1 shape: {hash: [messages]}.
+                for k, v in rec.items():
+                    if isinstance(v, list):
+                        by_hash[k] = v
+            elif isinstance(rec, list):
+                # Defensive fallback: bare list, key by line index.
+                by_hash[str(i)] = rec
+
+    print(f"  -> loaded {len(by_hash)} contexts")
+    if by_hash:
+        first_key = next(iter(by_hash))
+        first_val = by_hash[first_key]
+        print(f"  -> sample key: {first_key[:32]}...")
+        print(f"  -> first context has {len(first_val)} messages; "
+              f"first role={first_val[0].get('role','?') if first_val else '-'}")
+    return by_hash
 
 
-def _extract_ground_truth(item: dict) -> list[str]:
-    """Ground-truth trait *values* as plain strings."""
-    for key in ("persona_traits", "traits", "ground_truth_traits", "persona"):
-        if key in item:
-            v = item[key]
-            if isinstance(v, list):
-                return [str(x) if not isinstance(x, dict) else x.get("value", str(x)) for x in v]
-            if isinstance(v, dict):
-                return [str(x) for x in v.values()]
-    return []
+def _ctx_for_question(row, ctx_by_hash):
+    """Direct hash lookup — no positional mapping needed."""
+    return ctx_by_hash.get(str(row["shared_context_id"]))
 
 
-def _extract_probes(item: dict) -> list[dict]:
-    return item.get("probe_questions") or item.get("probes") or []
+def _parse_letter(text):
+    if not text:
+        return None
+    m = LETTER_RE.search(text)
+    if m:
+        return f"({m.group(1).lower()})"
+    s = text.strip().lower()
+    if s and s[0] in "abcd":
+        return f"({s[0]})"
+    return None
 
 
-def evaluate(data_dir: Path, out_csv: Path, limit: int | None = None) -> None:
-    items = _load_personamem(data_dir)
-    if limit:
-        items = items[:limit]
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
+def _format_mcq(question, options_json):
+    try:
+        options = json.loads(options_json)
+    except (json.JSONDecodeError, TypeError):
+        options = [s.strip() for s in str(options_json).strip("[]").split('", "')]
+    bullet = "\n".join(f"  {o}" for o in options)
+    return (
+        f"{question}\n\n"
+        f"Choose the single best option from:\n{bullet}\n\n"
+        "Reply with ONLY the option letter in parentheses, e.g. (c). "
+        "No explanation, no extra text."
+    )
 
-    fieldnames = ["item_idx", "user_id", "n_turns", "n_gt_traits",
-                  "n_pred_traits", "precision", "recall", "f1",
-                  "p_at_5", "r_at_5", "probe_correct", "probe_total"]
 
-    with out_csv.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fieldnames)
-        writer.writeheader()
+def run(n, randomize, output_path):
+    s = get_settings()
+    print("=" * 78)
+    print("PersonaMem v1 (32k) evaluation")
+    print("=" * 78)
+    print(f"  chroma_persist_dir = {s.chroma_persist_dir}")
+    print(f"  sqlite_path        = {s.sqlite_path}")
+    if "pm_eval_" not in s.chroma_persist_dir:
+        print("\n  !!! WARNING: isolation may have failed. Aborting.")
+        return
+    print()
 
-        for idx, item in enumerate(tqdm(items, desc="PersonaMem")):
-            agent = Agent()                            # fresh per item — isolation
-            user_id = f"pm_{idx}_{uuid4().hex[:8]}"
-            dialogue = _extract_dialogue(item)
-            gt_traits = _extract_ground_truth(item)
-            probes = _extract_probes(item)
+    if not QUESTIONS_CSV.exists() or not CONTEXTS_JSONL.exists():
+        print(f"  ERROR: dataset not found at {DATA_DIR}.")
+        print("  Run: python data/download_personamem.py")
+        sys.exit(1)
 
-            # Stream user turns
-            for turn in dialogue:
-                if turn.get("role") == "user":
-                    try:
-                        agent.chat(user_id, turn.get("text") or turn.get("content", ""))
-                    except Exception as e:
-                        log.warning(f"chat failed turn={turn}: {e}")
+    print(f"  loading {QUESTIONS_CSV.name} ...", end=" ", flush=True)
+    df = pd.read_csv(QUESTIONS_CSV)
+    print(f"{len(df)} questions.")
 
-            # Pull final persona traits from the agent
-            pred = [t["value"] for t in agent.memory.persona.get_active(user_id)]
+    ctx_by_hash = _build_context_index()
+    print()
 
-            # Trait-level scoring (string matching — see proposal §3.3)
-            f1m = trait_f1(pred, gt_traits)
+    if randomize:
+        sampled = df.sample(n=min(n, len(df)), random_state=42)
+    else:
+        sampled = df.sort_values("context_length_in_tokens").head(n)
+    sampled = sampled.reset_index(drop=True)
+    print(f"  sampled {len(sampled)} questions "
+          f"({'random' if randomize else 'shortest-context first'})")
+    print()
 
-            # Retrieval scoring on probes (if probes ship with relevant_ids
-            # we use them; else skip).
-            p5 = r5 = 0.0
-            for probe in probes:
-                relevant_ids = set(probe.get("relevant_memory_ids", []))
-                if relevant_ids:
-                    retrieved = agent.memory.retrieve(user_id, probe.get("question", ""))
-                    rids = [m.id for m in retrieved]
-                    p5 += precision_at_k(rids, relevant_ids, 5)
-                    r5 += recall_at_k(rids, relevant_ids, 5)
-            denom = max(1, len([p for p in probes if p.get("relevant_memory_ids")]))
-            p5, r5 = p5 / denom, r5 / denom
+    agent = Agent()
 
-            # Probe MCQ accuracy (if `answer` and `options` provided)
-            correct = total = 0
-            for probe in probes:
-                if "answer" in probe and "options" in probe:
-                    total += 1
-                    resp = agent.chat(user_id,
-                        probe["question"] + "\nOptions:\n" +
-                        "\n".join(f"- {o}" for o in probe["options"]) +
-                        "\nReply with just the chosen option.").reply.lower()
-                    if str(probe["answer"]).lower() in resp:
-                        correct += 1
+    results = []
+    correct = 0
+    t_start = time.time()
 
-            writer.writerow({
-                "item_idx": idx,
-                "user_id": user_id,
-                "n_turns": len(dialogue),
-                "n_gt_traits": len(gt_traits),
-                "n_pred_traits": len(pred),
-                "precision": f1m["precision"],
-                "recall": f1m["recall"],
-                "f1": f1m["f1"],
-                "p_at_5": p5,
-                "r_at_5": r5,
-                "probe_correct": correct,
-                "probe_total": total,
-            })
+    for i, row in sampled.iterrows():
+        print(f"[{i+1}/{len(sampled)}] q={row['question_id'][:8]} "
+              f"persona={row['persona_id']} type={row['question_type']} "
+              f"ctx_tokens={row['context_length_in_tokens']}")
+        ctx_msgs = _ctx_for_question(row, ctx_by_hash)
+        if ctx_msgs is None:
+            print("    SKIP: context not resolvable")
+            continue
+        end = int(row["end_index_in_shared_context"])
+        ctx_msgs = ctx_msgs[:end]
+        user_turns = [m["content"] for m in ctx_msgs
+                      if isinstance(m, dict) and m.get("role") == "user"]
+        eval_uid = f"pm_{row['persona_id']}_{row['question_id'][:8]}"
+        t0 = time.time()
+        ingested_ok = 0
+        ingest_errors = 0
+        for j, utext in enumerate(user_turns):
+            try:
+                agent.chat(eval_uid, utext, generate_reply=False)
+                ingested_ok += 1
+            except Exception as e:
+                ingest_errors += 1
+                if ingest_errors <= 3:    # avoid log spam on bad runs
+                    print(f"    ingest warning at turn {j}: "
+                          f"{type(e).__name__}: {str(e)[:120]}")
+                continue   # one bad atom must not kill the whole context
+        ingest_secs = time.time() - t0
 
-    log.info(f"Wrote results to {out_csv}")
+        mcq = _format_mcq(row["user_question_or_message"], row["all_options"])
+        t0 = time.time()
+        try:
+            resp = agent.chat(eval_uid, mcq, generate_reply=True)
+            reply = resp.reply
+        except Exception as e:
+            print(f"    answer error: {e}")
+            continue
+        answer_secs = time.time() - t0
+        picked = _parse_letter(reply)
+        gold = str(row["correct_answer"]).strip().lower()
+        is_correct = picked == gold
+        if is_correct:
+            correct += 1
+        flag = "OK" if is_correct else "XX"
+        print(f"    [{flag}] ingested {ingested_ok}/{len(user_turns)} user turns "
+              f"({ingest_secs:.1f}s; {ingest_errors} errors) "
+              f"| answer {answer_secs:.1f}s | picked={picked} gold={gold}")
+        results.append({
+            "question_id": row["question_id"],
+            "persona_id": int(row["persona_id"]),
+            "question_type": row["question_type"],
+            "topic": row["topic"],
+            "context_tokens": int(row["context_length_in_tokens"]),
+            "user_turns_total": len(user_turns),
+            "user_turns_ingested": ingested_ok,
+            "ingest_errors": ingest_errors,
+            "picked": picked,
+            "gold": gold,
+            "correct": is_correct,
+            "reply": reply,
+            "ingest_seconds": round(ingest_secs, 2),
+            "answer_seconds": round(answer_secs, 2),
+        })
+
+    total_secs = time.time() - t_start
+    answered = len(results)
+    accuracy = correct / answered if answered else 0.0
+    print()
+    print("=" * 78)
+    print(f"SUMMARY  ->  {correct}/{answered}  ({accuracy:.1%})  "
+          f"in {total_secs/60:.1f} min")
+    print("=" * 78)
+    if answered:
+        per_type = {}
+        for r in results:
+            per_type.setdefault(r["question_type"], []).append(r["correct"])
+        print("  by question_type:")
+        for qt, marks in per_type.items():
+            print(f"    {qt:<35} {sum(marks)}/{len(marks)}  "
+                  f"({sum(marks)/len(marks):.1%})")
+
+    if output_path:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump({"accuracy": accuracy, "n": answered,
+                       "total_seconds": round(total_secs, 1),
+                       "results": results}, f, indent=2)
+        print(f"\n  wrote {output_path}")
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--n", type=int, default=5)
+    p.add_argument("--random", action="store_true")
+    p.add_argument("--output", type=str, default=None)
+    args = p.parse_args()
+    run(args.n, args.random, args.output)
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default="data/personamem")
-    ap.add_argument("--out", default="evaluation/results/personamem.csv")
-    ap.add_argument("--limit", type=int, default=None,
-                    help="Process only the first N items (for fast iteration).")
-    a = ap.parse_args()
-    evaluate(Path(a.data), Path(a.out), limit=a.limit)
+    main()

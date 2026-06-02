@@ -3,14 +3,36 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from uuid import uuid4
 
 
 TraitType = Literal[
     "preference", "dietary", "occupation", "health",
-    "relationship", "goal", "dislike", "routine", "fact", "other",
+    "relationship", "goal", "dislike", "routine", "fact",
+    # Expanded vocabulary — these are common categories the gatekeeper LLM
+    # produces and they're genuinely useful for downstream analysis.
+    "emotion", "hobby", "skill", "interest", "opinion",
+    "lifestyle", "experience", "demographic", "belief",
+    "other",
 ]
+
+_TRAIT_TYPE_ALIASES: set[str] = {
+    "preference", "dietary", "occupation", "health",
+    "relationship", "goal", "dislike", "routine", "fact",
+    "emotion", "hobby", "skill", "interest", "opinion",
+    "lifestyle", "experience", "demographic", "belief", "other",
+}
+
+
+def _coerce_trait_type(v):
+    """Normalise trait_type so LLM-produced variants outside the allowlist
+    collapse to 'other' instead of raising a validation error mid-ingest."""
+    if isinstance(v, str):
+        v_norm = v.strip().lower()
+        if v_norm in _TRAIT_TYPE_ALIASES:
+            return v_norm
+    return "other"
 
 
 class MemoryAtom(BaseModel):
@@ -35,6 +57,11 @@ class MemoryAtom(BaseModel):
     source_session: Optional[str] = None
     source_turn: Optional[int] = None
 
+    @field_validator("trait_type", mode="before")
+    @classmethod
+    def _normalise_trait_type(cls, v):
+        return _coerce_trait_type(v)
+
 
 class PersonaTrait(BaseModel):
     """A consolidated trait stored in the structured persona."""
@@ -49,6 +76,11 @@ class PersonaTrait(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_reinforced_at: datetime = Field(default_factory=datetime.utcnow)
     superseded_by: Optional[str] = None
+
+    @field_validator("trait_type", mode="before")
+    @classmethod
+    def _normalise_trait_type(cls, v):
+        return _coerce_trait_type(v)
 
 
 class ChatRequest(BaseModel):

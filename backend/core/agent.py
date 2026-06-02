@@ -1,7 +1,3 @@
-"""The Agent — orchestrates Gatekeeper, Synthesis, Memory, Forgetting, LLM.
-
-This is the public surface of the system. One entry point: chat().
-"""
 from __future__ import annotations
 
 import logging
@@ -43,18 +39,19 @@ class Agent:
 
     # -------------------------------------------------------------------
     def chat(self, user_id: str, message: str,
-             session_id: str | None = None) -> ChatResponse:
+             session_id: str | None = None,
+             generate_reply: bool = True) -> ChatResponse:
         session_id = session_id or str(uuid.uuid4())
         history = self.memory.history(user_id)
         turn = len(history) // 2  # rough turn index
 
-        # 1) Push to STM
+        # Push to STM
         self.memory.push_user(user_id, message)
 
-        # 2) Gatekeeper — score atoms, pass only high-signal
+        # Gatekeeper — score atoms, pass only high-signal
         passed, rejected = self.gatekeeper.process(message, user_id, session_id, turn)
 
-        # 3) Synthesis — for each passed atom, build/upsert a persona trait
+        # Synthesis — for each passed atom, build/upsert a persona trait
         synthesized: list[dict] = []
         current = self.memory.persona.get_active(user_id)
         for atom in passed:
@@ -65,7 +62,7 @@ class Agent:
             reinforces_id = trait.__dict__.get("_reinforces_id")
             supersedes_ids = trait.__dict__.get("_supersedes_ids", [])
 
-            # (a) Restatement → strengthen the existing trait, don't duplicate.
+            # Restatement → strengthen the existing trait, don't duplicate.
             if reinforces_id:
                 res = self.memory.persona.reinforce_trait(
                     reinforces_id, atom.id, trait.confidence)
@@ -79,7 +76,7 @@ class Agent:
                     continue
                 # trait vanished/superseded since synthesis → fall through to insert
 
-            # (b) New or contradictory trait → insert, then supersede outdated ones.
+            # New or contradictory trait → insert, then supersede outdated ones.
             self.memory.persona.upsert_trait(trait, supersede_existing=False)
             res = self.memory.persona.supersede_by_ids(supersedes_ids, trait.id)
             for ev_id in res["evidence_ids"]:
@@ -91,10 +88,26 @@ class Agent:
                                 "superseded_count": res["count"]})
             current = self.memory.persona.get_active(user_id)  # refresh
 
-        # 4) Importance-weighted retrieval
+        # Importance-weighted retrieval + reply generation
+        # Skip these steps during cheap ingest (used by PersonaMem eval).
+        if not generate_reply:
+            diagnostics = {
+                "session_id": session_id,
+                "turn": turn,
+                "gatekeeper": {
+                    "passed": [self._atom_brief(a) for a in passed],
+                    "rejected": [self._atom_brief(a) for a in rejected],
+                },
+                "synthesized": synthesized,
+                "persona_size": len(current),
+                "timestamp": datetime.utcnow().isoformat(),
+                "ingest_only": True,
+            }
+            return ChatResponse(reply="", session_id=session_id, diagnostics=diagnostics)
+
         retrieved = self.memory.retrieve(user_id, message)
 
-        # 5) Build response prompt
+        # Build response prompt
         persona_block = self.memory.persona_summary(user_id)
         memory_block = "\n".join(
             f"  • [{m.trait_type} | sim={m.similarity:.2f} | I={m.importance:.2f}] {m.text}"
@@ -118,7 +131,7 @@ class Agent:
             temperature=0.6, max_tokens=600,
         )
 
-        # 6) Push reply to STM
+        # Push reply to STM
         self.memory.push_assistant(user_id, reply)
 
         diagnostics = {
