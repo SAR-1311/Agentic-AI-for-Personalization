@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# --- Linguistic cues for confidence c(m) ----------------------------------
+# Linguistic cues for confidence c(m) 
 
 HEDGES = {
     "maybe", "might", "perhaps", "possibly", "probably", "i think",
@@ -43,7 +43,7 @@ def linguistic_confidence(text: str) -> float:
     return max(0.0, min(1.0, score))
 
 
-# --- Atom extraction prompt -----------------------------------------------
+# Atom extraction prompt
 
 EXTRACTION_SYSTEM = """You analyse a single user message and extract distinct
 'memory atoms' — facts, preferences, dislikes, routines, goals, or life events
@@ -87,9 +87,7 @@ class Gatekeeper:
         # users no longer share a denominator in f(m).
         self._user_count: dict[str, int] = {}
 
-    # -------------------------------------------------------------------
     # Eq. 2 — Frequency f(m)
-    # -------------------------------------------------------------------
     def frequency(self, atom_text: str, user_id: str,
                   trait_hint: str | None = None) -> float:
         """Eq. 2 — recurrence of this concept for this user, in [0, 1].
@@ -121,7 +119,7 @@ class Gatekeeper:
         occurrences = sim_evidence + persona_evidence + 1.0  # +1 for current atom
         return min(1.0, occurrences / (n + 2.0))
 
-    # --- helper: bridge to Phase-2.1 reinforcement ---------------------
+    # helper: bridge to Phase-2.1 reinforcement
     # Generic preference verbs/adverbs are stripped so matching is driven by
     # content nouns (e.g. "biryani") rather than scaffolding ("enjoys", "every").
     _STOPWORDS = {

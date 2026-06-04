@@ -1,4 +1,3 @@
-"""Pydantic schemas — single source of truth for data structures."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -26,8 +25,6 @@ _TRAIT_TYPE_ALIASES: set[str] = {
 
 
 def _coerce_trait_type(v):
-    """Normalise trait_type so LLM-produced variants outside the allowlist
-    collapse to 'other' instead of raising a validation error mid-ingest."""
     if isinstance(v, str):
         v_norm = v.strip().lower()
         if v_norm in _TRAIT_TYPE_ALIASES:
@@ -36,7 +33,6 @@ def _coerce_trait_type(v):
 
 
 class MemoryAtom(BaseModel):
-    """A discrete piece of information extracted from a user utterance."""
     id: str = Field(default_factory=lambda: str(uuid4()))
     user_id: str
     text: str
@@ -64,7 +60,6 @@ class MemoryAtom(BaseModel):
 
 
 class PersonaTrait(BaseModel):
-    """A consolidated trait stored in the structured persona."""
     id: str = Field(default_factory=lambda: str(uuid4()))
     user_id: str
     trait_type: TraitType

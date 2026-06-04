@@ -1,10 +1,21 @@
 """Life-Transition synthetic stress test — measures Adaptation Latency (Eq. 6).
 
 Procedure (proposal §3.3):
-  1. Sessions 1..N-1: user expresses a stable preference (e.g. vegetarian).
-  2. Session N:       user reverses the preference.
-  3. Sessions N+1..:  probe questions; measure how many turns until the agent
-     stops giving the OLD preference's answers.
+  1. Establish phase: user expresses a stable preference (e.g. vegetarian)
+     across several turns.
+  2. Transition turn: user reverses the preference.
+  3. Probe phase: ask preference-sensitive questions; measure how many probes
+     are needed before the agent stops giving answers tied to the OLD preference.
+
+Adaptation criterion (per scenario):
+    adapted := the probe's reply does NOT contain any of the OLD preference's
+               keywords. This is the cleanest, most defensible signal: if the
+               agent is still recommending Edinburgh walks after the user moved
+               to Berlin, it has not adapted; if it gives any reply that avoids
+               the old keywords (Berlin-aware OR generic), it has.
+
+A separate `new_keywords_hit` field is logged for inspection but is NOT used in
+the adaptation_latency calculation, so the metric remains conservative.
 
 Run: python -m evaluation.life_transition
 """
@@ -12,21 +23,31 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from uuid import uuid4
 
-from backend.core.agent import Agent
-from evaluation.metrics import adaptation_latency
+# Isolate from real data BEFORE backend imports.
+os.environ["SQLITE_PATH"]        = tempfile.mktemp(suffix=".db", prefix="lt_eval_")
+os.environ["CHROMA_PERSIST_DIR"] = tempfile.mkdtemp(prefix="lt_eval_chroma_")
 
-logging.basicConfig(level=logging.INFO)
+from backend.config import get_settings                     # noqa: E402
+from backend.core.agent import Agent                        # noqa: E402
+from evaluation.metrics import adaptation_latency           # noqa: E402
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
 
 
 SCENARIOS = [
     {
         "name": "vegetarian_to_omnivore",
-        "old_pref_keywords": ["meat", "chicken", "beef", "fish", "pork"],   # appearance = adapted
-        "old_pref_label": "vegetarian",
+        # Keywords characteristic of the OLD state (vegetarian).
+        # Adapted = NONE of these appear in the reply.
+        "old_keywords": ["vegetarian", "vegan", "tofu", "lentils", "plant-based"],
+        # New-state keywords are LOGGED but not used in the metric.
+        "new_keywords": ["meat", "chicken", "beef", "fish", "pork", "salmon"],
         "establish": [
             "I've been vegetarian for years.",
             "I always cook tofu and lentils for dinner.",
@@ -45,8 +66,10 @@ SCENARIOS = [
     },
     {
         "name": "career_change",
-        "old_pref_keywords": ["software", "code", "developer", "engineer"],
-        "old_pref_label": "software_engineer",
+        "old_keywords": ["software engineer", "software engineering", "engineer",
+                         "debugging", "code review", "python"],
+        "new_keywords": ["data scientist", "data science", "statistics",
+                         "machine learning", " ml ", "model"],
         "establish": [
             "I work as a software engineer at a fintech startup.",
             "My day is mostly debugging and code reviews.",
@@ -64,8 +87,10 @@ SCENARIOS = [
     },
     {
         "name": "city_move",
-        "old_pref_keywords": ["edinburgh", "scotland", "scottish"],
-        "old_pref_label": "edinburgh_resident",
+        "old_keywords": ["edinburgh", "scotland", "scottish", "arthur's seat",
+                         "old town", "scottish highlands"],
+        "new_keywords": ["berlin", "germany", "german", "brandenburg",
+                         "kreuzberg", "mitte"],
         "establish": [
             "I live in Edinburgh and love the old town.",
             "Most weekends I walk Arthur's Seat.",
@@ -83,59 +108,92 @@ SCENARIOS = [
 ]
 
 
-def _adapted(reply: str, scenario: dict) -> bool:
-    """Heuristic: agent has 'adapted' if response mentions the new context
-    or AVOIDS the old preference's keywords."""
-    rl = reply.lower()
-    # If the old preference is dietary 'vegetarian', adaptation = mentions meat etc.
-    return any(kw in rl for kw in scenario["old_pref_keywords"])
+def _adapted(reply: str, scenario: dict) -> tuple[bool, dict]:
+    """Agent has adapted iff the reply avoids the OLD preference's keywords.
+
+    Returns (is_adapted, diagnostics). Diagnostics records which old/new
+    keywords actually appeared, for downstream inspection in the results JSON.
+    """
+    rl = (reply or "").lower()
+    old_hits = [kw for kw in scenario["old_keywords"] if kw in rl]
+    new_hits = [kw for kw in scenario["new_keywords"] if kw in rl]
+    is_adapted = len(old_hits) == 0
+    return is_adapted, {"old_keywords_hit": old_hits, "new_keywords_hit": new_hits}
 
 
 def run(out_json: Path = Path("evaluation/results/life_transition.json")) -> dict:
+    s = get_settings()
+    log.info("=" * 72)
+    log.info("Life-Transition synthetic evaluation")
+    log.info("=" * 72)
+    log.info(f"  chroma_persist_dir = {s.chroma_persist_dir}")
+    log.info(f"  sqlite_path        = {s.sqlite_path}")
+    if "lt_eval_" not in s.chroma_persist_dir:
+        log.error("  !!! isolation failed — aborting.")
+        return {}
+    log.info("")
+
     out_json.parent.mkdir(parents=True, exist_ok=True)
     results: list[dict] = []
 
     for sc in SCENARIOS:
+        # Use a fresh user_id per scenario so memories don't bleed between them.
         agent = Agent()
         user_id = f"lt_{sc['name']}_{uuid4().hex[:6]}"
-        log.info(f"Running scenario: {sc['name']}  user={user_id}")
+        log.info(f"[{sc['name']}] user={user_id}")
 
-        # Establish phase — simulate 3 short sessions
+        # Establish: ingest-only, no reply needed.
         for utt in sc["establish"]:
-            agent.chat(user_id, utt)
+            agent.chat(user_id, utt, generate_reply=False)
 
-        # Transition turn (this is t_change)
+        # Transition: ingest-only too — the user's statement is what matters,
+        # not how the agent acknowledges it.
         for utt in sc["transition"]:
-            agent.chat(user_id, utt)
-        t_change = 0  # we treat probes as a 0-indexed window after transition
+            agent.chat(user_id, utt, generate_reply=False)
 
-        # Probe phase
+        # Probe: real replies, adaptation decision per probe.
         decisions: list[bool] = []
         replies: list[dict] = []
         for q in sc["probes"]:
-            r = agent.chat(user_id, q)
-            decisions.append(_adapted(r.reply, sc))
-            replies.append({"q": q, "reply": r.reply, "adapted": decisions[-1]})
+            r = agent.chat(user_id, q, generate_reply=True)
+            adapted, diag = _adapted(r.reply, sc)
+            decisions.append(adapted)
+            replies.append({
+                "q": q,
+                "reply": r.reply,
+                "adapted": adapted,
+                **diag,
+            })
+            tag = "[OK]" if adapted else "[old]"
+            log.info(f"  {tag} q={q!r}  old_hit={diag['old_keywords_hit']}  "
+                     f"new_hit={diag['new_keywords_hit']}")
 
-        AL = adaptation_latency(t_change, decisions)
+        AL = adaptation_latency(0, decisions)  # t_change is the moment before probes
         results.append({
             "scenario": sc["name"],
             "adaptation_latency_turns": AL,
             "decisions": decisions,
             "replies": replies,
         })
-        log.info(f"  Adaptation Latency = {AL} turns")
+        log.info(f"  -> Adaptation Latency = {AL} turns\n")
 
-    summary = {"scenarios": results,
-               "mean_AL": _mean_skipping_none([r["adaptation_latency_turns"] for r in results])}
+    mean_AL = _mean_skipping_none([r["adaptation_latency_turns"] for r in results])
+    summary = {"scenarios": results, "mean_AL": mean_AL}
     out_json.write_text(json.dumps(summary, indent=2))
-    log.info(f"Wrote {out_json}")
+
+    log.info("=" * 72)
+    log.info(f"SUMMARY")
+    log.info("=" * 72)
+    for r in results:
+        log.info(f"  {r['scenario']:<28} AL = {r['adaptation_latency_turns']} turns")
+    log.info(f"  {'mean':<28} AL = {mean_AL}")
+    log.info(f"\n  wrote {out_json}")
     return summary
 
 
-def _mean_skipping_none(xs: list[int | None]) -> float | None:
+def _mean_skipping_none(xs):
     vals = [x for x in xs if x is not None]
-    return sum(vals) / len(vals) if vals else None
+    return round(sum(vals) / len(vals), 2) if vals else None
 
 
 if __name__ == "__main__":

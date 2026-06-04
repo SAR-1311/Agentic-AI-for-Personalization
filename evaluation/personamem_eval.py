@@ -1,22 +1,3 @@
-"""PersonaMem v1 (32k) evaluation runner.
-
-For each sampled multiple-choice question:
-  1. Resolves the shared_context_id -> the matching JSONL line and slices to
-     end_index_in_shared_context messages.
-  2. Builds the agent's memory by feeding the *user* messages from that slice
-     through agent.chat(..., generate_reply=False) — gatekeeper, synthesis, and
-     storage all run; reply generation is skipped to keep the run cheap.
-  3. Builds an MCQ prompt from user_question_or_message + all_options and asks
-     the agent (now reply-generating) to pick one option.
-  4. Parses the chosen letter and compares to correct_answer.
-  5. Reports per-question results plus headline accuracy.
-
-Usage:
-    python -m evaluation.personamem_eval                    # default: 5 shortest
-    python -m evaluation.personamem_eval --n 20             # 20 shortest
-    python -m evaluation.personamem_eval --n 20 --random    # random sample
-    python -m evaluation.personamem_eval --output runs/pm.json
-"""
 from __future__ import annotations
 
 import argparse
@@ -45,12 +26,6 @@ LETTER_RE = re.compile(r"\(([a-dA-D])\)")
 
 
 def _build_context_index() -> dict[str, list[dict]]:
-    """Index shared contexts by their content-hash id.
-
-    PersonaMem v1's actual file shape: JSONL where each line is a one-entry
-    JSON dict {hash: [messages]}. The hash matches the CSV's shared_context_id,
-    so lookup is direct.
-    """
     file_size = CONTEXTS_JSONL.stat().st_size
     print(f"  indexing {CONTEXTS_JSONL.name} ({file_size:,} bytes) ...")
 
@@ -84,7 +59,6 @@ def _build_context_index() -> dict[str, list[dict]]:
 
 
 def _ctx_for_question(row, ctx_by_hash):
-    """Direct hash lookup — no positional mapping needed."""
     return ctx_by_hash.get(str(row["shared_context_id"]))
 
 

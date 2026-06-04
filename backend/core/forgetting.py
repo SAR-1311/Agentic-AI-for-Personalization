@@ -1,12 +1,3 @@
-"""Controlled Forgetting — Eq. 7 of the proposal:
-
-    I_t(m) = I_0(m) · e^(-λt)
-
-Two modes:
-  1. Temporal decay  — automatic, runs as a sweep over LTM.
-  2. User revocation — explicit deletion of single memory or trait cluster
-                       (the GDPR-style 'right to be forgotten').
-"""
 from __future__ import annotations
 
 import logging
