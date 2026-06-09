@@ -1,5 +1,6 @@
 Metric,Value,Best baseline
-PersonaMem accuracy (n=50),64.0%,EverMemOS 53.2%
+PersonaMem v1 accuracy (n=50),64.0%,EverMemOS 53.2%
+LoCoMo-MC10 accuracy (n=30),46.7%,no MC10 baselines (10-choice; random=10%)
 Retrieval P@K (optimum band),0.889,Pure cosine 0.667
 Retrieval RNR (optimum band),0.111,Pure cosine 0.333
-Adaptation Latency (mean of 3),1.33 turns,n/a (original)
+Adaptation Latency (mean of 3),1.33 turns,n/a (original metric)

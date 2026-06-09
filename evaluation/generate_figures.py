@@ -1,3 +1,21 @@
+"""Generate all dissertation figures from evaluation result files.
+
+Reads:
+  runs/personamem_n50.json       — PersonaMem random eval, n=50 (headline result)
+  runs/personamem_n5.json        — PersonaMem pilot, n=5 shortest-context
+  evaluation/results/life_transition.json — Adaptation latency
+
+Hardcodes (values from terminal logs of runs that didn't dump JSON):
+  retrieval_smoke.py             — P@K and RNR vs importance weight
+  forgetting_demo.py             — Eq. 7 verification on backdated atoms
+
+Writes:
+  evaluation/figures/*.png       — Figures for the dissertation
+  evaluation/figures/summary.csv — Headline metrics table
+  evaluation/figures/summary.tex — LaTeX version of the same table
+
+Usage: python -m evaluation.generate_figures
+"""
 from __future__ import annotations
 
 import json
@@ -371,19 +389,100 @@ def fig6_forgetting_verification():
 
 
 # ============================================================================
+# Figure 7 — LoCoMo-MC10 per-question-type accuracy
+# ============================================================================
+# Second public benchmark. Same recall-vs-synthesis split as Figure 1, which
+# strengthens the central architectural argument.
+# ============================================================================
+LOCOMO_RECALL_TYPES = {"single_hop", "adversarial"}
+
+
+def fig7_locomo_per_type():
+    print("Figure 7: LoCoMo-MC10 per-question-type accuracy")
+    data = _load(RUNS_DIR / "locomo_n30.json")
+    if not data:
+        return None
+
+    by_type: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for r in data["results"]:
+        by_type[r["question_type"]][1] += 1
+        if r["correct"]:
+            by_type[r["question_type"]][0] += 1
+
+    rows = []
+    for qt, (c, t) in by_type.items():
+        rows.append({
+            "type": qt,
+            "correct": c, "total": t,
+            "acc": (c / t) if t else 0.0,
+            "regime": "recall" if qt in LOCOMO_RECALL_TYPES else "generation",
+        })
+    df = pd.DataFrame(rows).sort_values(["regime", "acc"],
+                                        ascending=[True, False]).reset_index(drop=True)
+
+    label_map = {
+        "single_hop": "Single-hop\n(direct recall)",
+        "adversarial": "Adversarial\n(refusal)",
+        "multi_hop": "Multi-hop\n(cross-session synthesis)",
+        "open_domain": "Open-domain",
+        "temporal_reasoning": "Temporal\nreasoning",
+    }
+    df["label"] = df["type"].map(label_map).fillna(df["type"])
+    df["color"] = df["regime"].map({"recall": C_RECALL, "generation": C_GEN})
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    bars = ax.bar(df["label"], df["acc"] * 100, color=df["color"], edgecolor="white")
+    ax.set_ylim(0, 105)
+    ax.set_ylabel("Accuracy (%)")
+    ax.set_title("LoCoMo-MC10 — Accuracy by Question Type (n=30 random)")
+
+    for b, c, t, acc in zip(bars, df["correct"], df["total"], df["acc"]):
+        ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 2,
+                f"{acc*100:.1f}%\n({c}/{t})", ha="center", fontsize=9)
+
+    n = sum(df["total"])
+    correct = sum(df["correct"])
+    overall = (correct / n * 100) if n else 0
+    ax.axhline(overall, color=C_BASE_DARK, linestyle="--", linewidth=1, alpha=0.7)
+    ax.text(len(df) - 0.5, overall + 1.5, f"overall {overall:.1f}%",
+            ha="right", fontsize=9, color=C_BASE_DARK, fontstyle="italic")
+
+    # Random baseline marker — important context for a 10-choice MCQ.
+    ax.axhline(10, color=C_FLOOR, linestyle=":", linewidth=1, alpha=0.7)
+    ax.text(0, 11.5, "random baseline (10%)",
+            ha="left", fontsize=8, color=C_FLOOR, fontstyle="italic")
+
+    from matplotlib.patches import Patch
+    ax.legend(handles=[
+        Patch(facecolor=C_RECALL, label="Recall-aligned"),
+        Patch(facecolor=C_GEN, label="Synthesis / generation"),
+    ], loc="upper right", framealpha=0.9)
+
+    ax.tick_params(axis="x", labelsize=9)
+    return _save(fig, "fig7_locomo_per_type")
+
+
+# ============================================================================
 # Summary table for the dissertation
 # ============================================================================
 def write_summary():
     print("Summary: CSV + LaTeX table")
     pm50 = _load(RUNS_DIR / "personamem_n50.json")
     lt = _load(RESULTS_DIR / "life_transition.json")
+    lc30 = _load(RUNS_DIR / "locomo_n30.json")
 
     rows = []
     if pm50:
         rows.append({
-            "Metric": "PersonaMem accuracy (n=50)",
+            "Metric": "PersonaMem v1 accuracy (n=50)",
             "Value": f"{pm50['accuracy']*100:.1f}%",
             "Best baseline": "EverMemOS 53.2%",
+        })
+    if lc30:
+        rows.append({
+            "Metric": "LoCoMo-MC10 accuracy (n=30)",
+            "Value": f"{lc30['accuracy']*100:.1f}%",
+            "Best baseline": "no MC10 baselines (10-choice; random=10%)",
         })
     rows.append({
         "Metric": "Retrieval P@K (optimum band)",
@@ -399,7 +498,7 @@ def write_summary():
         rows.append({
             "Metric": "Adaptation Latency (mean of 3)",
             "Value": f"{lt['mean_AL']:.2f} turns",
-            "Best baseline": "n/a (original)",
+            "Best baseline": "n/a (original metric)",
         })
 
     df = pd.DataFrame(rows)
@@ -427,6 +526,7 @@ def main():
     fig4_decay_theory()
     fig5_retrieval_sweep()
     fig6_forgetting_verification()
+    fig7_locomo_per_type()
     print()
     write_summary()
     print()

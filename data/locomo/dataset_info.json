@@ -1,0 +1,600 @@
+{
+  "source": "Percena/locomo-mc10",
+  "source_file": "data/locomo_mc10.json",
+  "rows": 1986,
+  "columns": [
+    "answer",
+    "choices",
+    "correct_choice_index",
+    "haystack_session_datetimes",
+    "haystack_session_ids",
+    "haystack_session_summaries",
+    "haystack_sessions",
+    "num_choices",
+    "num_sessions",
+    "question",
+    "question_id",
+    "question_type"
+  ],
+  "first_row_preview": {
+    "question_id": "conv-26_q0",
+    "question": "When did Caroline go to the LGBTQ support group?",
+    "question_type": "multi_hop",
+    "answer": "7 May 2023",
+    "correct_choice_index": 5,
+    "num_choices": 10,
+    "num_sessions": 19,
+    "choices": [
+      "20 May 2023",
+      "10 May 2023",
+      "6 May 2023",
+      "…",
+      "(4 more)",
+      "…",
+      "15 May 2023",
+      "14 May 2023",
+      "7 April 2023"
+    ],
+    "haystack_session_ids": [
+      "session_1",
+      "session_2",
+      "session_3",
+      "…",
+      "(13 more)",
+      "…",
+      "session_17",
+      "session_18",
+      "session_19"
+    ],
+    "haystack_session_summaries": [
+      "Caroline and Melanie had a conversation on 8 May 2023 at 1:56 pm. Caroline mentioned that she attended an LGBTQ support group and was inspired by the transgender stories she heard. The support group made her feel accepted and gave her the courage to embrace herself. Caroline plans to continue her education and explore career options, particularly in counseling or working in mental health. Melanie praised Caroline's empathy and mentioned that she painted a lake sunrise last year as a way of expressing herself. Caroline complimented Melanie's painting and agreed that painting is a great outlet for relaxation and self-expression. They both emphasized the importance of taking care of oneself. Caroline was going to do some research, while Melanie planned to go swimming with her kids.",
+      "On May 25, 2023 at 1:14 pm, Melanie tells Caroline about her recent experience running a charity race for mental health. Caroline expresses pride and agrees that taking care of oneself is important. Melanie shares her struggle with self-care but mentions that she is carving out time each day for activities that refresh her. Caroline encourages Melanie and praises her efforts. Melanie then asks Caroline about her plans for the summer, to which Caroline replies that she is researching adoption agencies as she wants to give a loving home to children in need. Melanie praises Caroline's decision and expresses excitement for her future family. Caroline explains that she chose an adoption agency that supports the LGBTQ+ community because of its inclusivity and support. Melanie commends Caroline's choice and asks what she is looking forward to in the adoption process. Caroline says she is thrilled to create a family for kids who need one, despite the challenges of being a single parent. Melanie encourages Caroline and expresses confidence in her ability to provide a safe and loving home. The conversation ends with Melanie expressing her excitement for Caroline's new chapter.",
+      "Caroline and Melanie had a conversation at 7:55 pm on 9 June, 2023. Caroline shared about her school event last week where she talked about her transgender journey and encouraged students to get involved in the LGBTQ community. Melanie praised Caroline for spreading awareness and inspiring others with her strength and courage. They discussed the importance of conversations about gender identity and inclusion. Caroline expressed gratitude for the support she has received and the opportunity to give a voice to the trans community. Melanie commended Caroline for using her voice to create love, acceptance, and hope. They talked about the power of sharing personal stories and the impact it can have on others. They both expressed a desire to make a positive difference and support each other. Melanie mentioned that her family motivates her, while Caroline mentioned that her friends, family, and mentors are her support system. They shared photos of their loved ones and talked about the length of their relationships. Melanie mentioned being married for 5 years and Caroline expressed congratulations and well-wishes. They discussed the importance of cherishing family moments and finding happiness in them. They both agreed that family is everything.",
+      "…",
+      "(13 more)",
+      "…",
+      "Caroline reached out to her friend Melanie to share her excitement about her decision to adopt and become a mother. Melanie mentioned that she knew someone who had successfully adopted. Caroline gave Melanie some advice on how to get started with the adoption process, emphasizing the importance of research and emotional preparation. Melanie mentioned that she had recently experienced a setback due to an injury, but had found solace in reading and painting. Caroline showed interest in Melanie's paintings, and shared her own recent venture into abstract art. They discussed the emotions behind their artwork and the therapeutic nature of self-expression. Caroline also mentioned attending a poetry reading that celebrated transgender identities, which inspired her to create her own art. Melanie praised Caroline's artwork and they affirmed the importance of staying true to oneself and embracing personal growth and exploration.",
+      "Melanie and Caroline are discussing a recent road trip on October 20, 2023. Melanie mentions that her son got into an accident, but fortunately, he is okay. She reflects on the importance of cherishing family and how they enjoyed their time at the Grand Canyon. Caroline acknowledges the resilience of children and the support that loved ones provide during tough times. Melanie expresses her gratitude for her family, who are her motivation and support. They also discuss the benefits of spending time in nature and how it helps them reset and recharge. Melanie shares that camping with her family brings peace and serenity and allows them to bond. Caroline compliments Melanie on the quality time she spends with her family and remarks on the priceless nature of these experiences.",
+      "Caroline tells Melanie that she passed the adoption agency interviews last Friday and is excited about the progress she's making towards her goal of having a family. Melanie congratulates her and shows her some figurines that remind her of family love. Caroline explains that she wants to build her own family and provide a home for children in need, as a way of giving back and showing love and acceptance. Melanie agrees that everyone deserves love and acceptance and admires Caroline's passion for helping these kids. Caroline shares that finding self-acceptance was a long process for her, but now she's ready to offer love and support to those who need it. Melanie praises Caroline for her strength and inspiration. Caroline credits her friends, family, and role models for helping her find acceptance and wants to pass that same support to others. Melanie tells Caroline that she is happy for her and finds her journey inspiring. Caroline expresses gratitude for the support she's received and considers it a gift to be able to share her journey and help others. Melanie agrees that it's important to be there for each other. Caroline emphasizes the importance of being oneself and living honestly, as it brings freedom and contentment. Both friends express their agreement and appreciation for the support they've received in being true to themselves."
+    ],
+    "haystack_session_datetimes": [
+      "2023-05-08T13:56:00",
+      "2023-05-25T13:14:00",
+      "2023-06-09T19:55:00",
+      "…",
+      "(13 more)",
+      "…",
+      "2023-10-13T10:31:00",
+      "2023-10-20T18:55:00",
+      "2023-10-22T09:55:00"
+    ],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Hey Mel! Good to see you! How have you been?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Hey Caroline! Good to see you! I'm swamped with the kids & work. What's up with you? Anything new?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I went to a LGBTQ support group yesterday and it was so powerful."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, that's cool, Caroline! What happened that was so awesome? Did you hear any inspiring stories?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: The transgender stories were so inspiring! I was so happy and thankful for all the support."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, love that painting! So cool you found such a helpful group. What's it done for you?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: The support group has made me feel accepted and given me courage to embrace myself."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: That's really cool. You've got guts. What now?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Gonna continue my edu and check out career options, which is pretty exciting!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, Caroline! What kinda jobs are you thinkin' of? Anything that stands out?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I'm keen on counseling or working in mental health - I'd love to support those with similar issues."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: You'd be a great counselor! Your empathy and understanding will really help the people you work with. By the way, take a look at this."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie! That's really sweet. Is this your own painting?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, I painted that lake sunrise last year! It's special to me."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow, Melanie! The colors really blend nicely. Painting looks like a great outlet for expressing yourself."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! Painting's a fun way to express my feelings and get creative. It's a great way to relax after a long day."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yep, Caroline. Taking care of ourselves is vital. I'm off to go swimming with the kids. Talk to you soon!"
+        }
+      ],
+      [
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Hey Caroline, since we last chatted, I've had a lot of things happening to me. I ran a charity race for mental health last Saturday – it was really rewarding. Really made me think about taking care of our minds."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm really proud of you for taking part!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! The event was really thought-provoking. I'm starting to realize that self-care is really important. It's a journey for me, but when I look after myself, I'm able to better look after my family."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I totally agree, Melanie. Taking care of ourselves is so important - even if it's not always easy. Great that you're prioritizing self-care."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, it's tough. So I'm carving out some me-time each day - running, reading, or playing my violin - which refreshes me and helps me stay present for my fam!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: That's great, Mel! Taking time for yourself is so important. You're doing an awesome job looking after yourself and your family!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline. It's still a work in progress, but I'm doing my best. My kids are so excited about summer break! We're thinking about going camping next month. Any fun plans for the summer?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Researching adoption agencies — it's been a dream to have a family and give a loving home to kids who need it."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, Caroline! That's awesome! Taking in kids in need - you're so kind. Your future family is gonna be so lucky to have you!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Mel! My goal is to give kids a loving home. I'm truly grateful for all the support I've got from friends and mentors. Now the hard work starts to turn my dream into a reality. And here's one of the adoption agencies I'm looking into. It's a lot to take in, but I'm feeling hopeful and optimistic."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, that agency looks great! What made you pick it?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I chose them 'cause they help LGBTQ+ folks with adoption. Their inclusivity and support really spoke to me."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: That's great, Caroline! Loving the inclusivity and support. Anything you're excited for in the adoption process?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I'm thrilled to make a family for kids who need one. It'll be tough as a single parent, but I'm up for the challenge!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: You're doing something amazing! Creating a family for those kids is so lovely. You'll be an awesome mom! Good luck!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie! Your kind words really mean a lot. I'll do my best to make sure these kids have a safe and loving home."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: No doubts, Caroline. You have such a caring heart - they'll get all the love and stability they need! Excited for this new chapter!"
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Hey Melanie! How's it going? I wanted to tell you about my school event last week. It was awesome! I talked about my transgender journey and encouraged students to get involved in the LGBTQ community. It was great to see their reactions. It made me reflect on how far I've come since I started transitioning three years ago."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Hey Caroline! Great to hear from you. Sounds like your event was amazing! I'm so proud of you for spreading awareness and getting others involved in the LGBTQ community. You've come a long way since your transition - keep on inspiring people with your strength and courage!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Mel! Your backing really means a lot. I felt super powerful giving my talk. I shared my own journey, the struggles I had and how much I've developed since coming out. It was wonderful to see how the audience related to what I said and how it inspired them to be better allies. Conversations about gender identity and inclusion are so necessary and I'm thankful for being able to give a voice to the trans community."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, Caroline, you're doing an awesome job of inspiring others with your journey. It's great to be part of it and see how you're positively affecting so many. Talking about inclusivity and acceptance is crucial, and you're so brave to speak up for the trans community. Keep up the great work!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks Mel! Your kind words mean a lot. Sharing our experiences isn't always easy, but I feel it's important to help promote understanding and acceptance. I've been blessed with loads of love and support throughout this journey, and I want to pass it on to others. By sharing our stories, we can build a strong, supportive community of hope."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, Caroline! It takes courage to talk about our own stories. But it's in these vulnerable moments that we bond and understand each other. We all have our different paths, but if we share them, we show people that they're not alone. Our stories can be so inspiring and encouraging to others who are facing the same challenges. Thank you for using your voice to create love, acceptance, and hope. You're doing amazing!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Your words mean a lot to me. I'm grateful for the chance to share my story and give others hope. We all have unique paths, and by working together we can build a more inclusive and understanding world. I'm going to keep using my voice to make a change and lift others up. And you're part of that!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline, for letting me join your journey. I'm so proud to be part of the difference you're making. Let's keep motivating and helping each other out as we journey through life. We can make a real impact together!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yeah Mel, let's spread love and understanding! Thanks for the support and encouragement. We can tackle life's challenges together! We got this!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yes, Caroline! We can do it. Your courage is inspiring. I want to be couragous for my family- they motivate me and give me love. What motivates you?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Mel! My friends, family and mentors are my rocks – they motivate me and give me the strength to push on. Here's a pic from when we met up last week!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, that photo is great! How long have you had such a great support system?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yeah, I'm really lucky to have them. They've been there through everything, I've known these friends for 4 years, since I moved from my home country. Their love and help have been so important especially after that tough breakup. I'm super thankful. Who supports you, Mel?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: I'm lucky to have my husband and kids; they keep me motivated."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow, what an amazing family pic! How long have you been married?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: 5 years already! Time flies- feels like just yesterday I put this dress on! Thanks, Caroline!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Congrats, Melanie! You both looked so great on your wedding day! Wishing you many happy years together!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! Appreciate your kind words. Looking forward to more happy years. Our family and moments make it all worth it."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Looks like you had a great day! How was it? You all look so happy!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: It so fun! We played games, ate good food, and just hung out together. Family moments make life awesome."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Sounds great, Mel! Glad you had a great time. Cherish the moments - they're the best!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Absolutely, Caroline! I cherish time with family. It's when I really feel alive and happy."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: I 100% agree, Mel. Hanging with loved ones is amazing and brings so much happiness. Those moments really make me thankful. Family is everything."
+        }
+      ],
+      "…",
+      "(13 more)",
+      "…",
+      [
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Hey Mel, what's up? Long time no see! I just contacted my mentor for adoption advice. I'm ready to be a mom and share my love and family. It's a great feeling. Anything new with you? Anything exciting going on?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Hey Caroline! Great to hear from you! Wow, what an amazing journey. Congrats!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie! I'm stoked to start this new chapter. It's been a dream to adopt and provide a safe, loving home for kids who need it. Do you have any experience with adoption, or know anyone who's gone through the process?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, a buddy of mine adopted last year. It was a long process, but now they're super happy with their new kid. Makes me feel like maybe I should do it too!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: That's great news about your friend! It can be tough, but so worth it. It's a great way to add to your family and show your love. If you ever do it, let me know — I'd love to help in any way I can."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! Appreciate your help. Got any tips for getting started on it?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yep! Do your research and find an adoption agency or lawyer. They'll help with the process and provide all the info. Gather documents like references, financial info and medical checks. Don't forget to prepare emotionally, since the wait can be hard. It's all worth it in the end though."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks for the tip, Caroline. Doing research and readying myself emotionally makes sense. I'll do that. BTW, recently I had a setback. Last month I got hurt and had to take a break from pottery, which I use for self-expression and peace."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Oh man, sorry to hear that, Melanie. I hope you're okay. Pottery's a great way to relax, so it must have been tough taking a break. Need any help?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline. It was tough, but I'm doing ok. Been reading that book you recommended a while ago and painting to keep busy."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Cool that you have creative outlets. Got any paintings to show? I'd love to check them out."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, Here's one I did last week. It's inspired by the sunsets. The colors make me feel calm. What have you been up to lately, artistically?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow Mel, that's stunning! Love the colors and the chilled-out sunset vibe. What made you paint it? I've been trying out abstract stuff recently. It's kinda freeing, just putting my feelings on the canvas without too much of a plan. It's like a cool form of self-expression."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! I painted it because it was calming. I've done an abstract painting too, take a look! I love how art lets us get our emotions out."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow, that looks great! The blue adds so much to it. What feelings were you hoping to portray?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: I wanted a peaceful blue streaks to show tranquility. Blue calms me, so I wanted the painting to have a serene vibe while still having lots of vibrant colors."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yeah, it's very calming. It's awesome how art can show emotions. By the way, I went to a poetry reading last Fri - it was really powerful! Ever been to one?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Nope, never been to something like that. What was it about? What made it so special?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: It was a transgender poetry reading where transgender people shared their stories through poetry. It was extra special 'cause it was a safe place for self-expression and it was really empowering to hear others share and celebrate their identities."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, sounds amazing! What was the event like? Those posters are great!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: The room was electric with energy and support! The posters were amazing, so much pride and strength! It inspired me to make some art."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: That's awesome, Caroline! You drew it? What does it mean to you?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie! Yeah, I drew it. It stands for freedom and being real. It's like a nudge to always stay true to myself and embrace my womanhood."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: I love it. Showing off our true selves is the best thing ever."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yep, Melanie! Being ourselves is such a great feeling. It's an ongoing adventure of learning and growing."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yep, Caroline. Life's about learning and exploring. Glad we can be on this trip together."
+        }
+      ],
+      [
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Hey Caroline, that roadtrip this past weekend was insane! We were all freaked when my son got into an accident. We were so lucky he was okay. It was a real scary experience. Thankfully it's over now. What's been up since we last talked?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Oops, sorry 'bout the accident! Must have been traumatizing for you guys. Thank goodness your son's okay. Life sure can be a roller coaster."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, our trip got off to a bad start. I was really scared when we got into the accident. Thankfully, my son's ok and that was a reminder that life is precious and to cherish our family."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Glad your son is okay, Melanie. Life's unpredictable, but moments like these remind us how important our loved ones are. Family's everything."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, you're right, Caroline. Family's super important to me. Especially after the accident, I've thought a lot about how much I need them. They mean the world to me and I'm so thankful to have them. Thankfully, they enjoyed the Grand Canyon a lot!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: The kids look so cute, Mel! I bet they bring lots of joy. How did they handle the accident?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks! They were scared but we reassured them and explained their brother would be OK. They're tough kids."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Kids are amazingly resilient in tough situations. They have an amazing ability to bounce back."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: They're really amazing. Wish I was that resilient too. But they give me the strength to keep going."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Our loved ones give us strength to tackle any challenge - it's amazing!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah, Caroline. Totally agree. They're my biggest motivation and support."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: It's so sweet to see your love for your family, Melanie. They really are your rock."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline. They're a real support. Appreciate them a lot."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Glad you've got people to lean on, Melanie. It helps during tougher times."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Yeah for sure. Having my fam around helps a lot. It makes hard times easier."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow, great pic! Is that recent? Looks like you all had fun!"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! Yup, we just did it yesterday! The kids loved it and it was a nice way to relax after the road trip."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Glad you got some R&R after the drive. Nature sure seems to refresh us, huh?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Absolutely! It really helps me reset and recharge. I love camping trips with my fam, 'cause nature brings such peace and serenity."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Wow, that's awesome! What do you love most about camping with your fam?"
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: It's a chance to be present and together. We bond over stories, campfires and nature. It's so peaceful waking up to the sound of birds and the smell of fresh air - it always refreshes my soul."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: That's so peaceful and calming, Melanie! I can picture waking up to nature. It's great that you get to spend quality, tranquil time with your family."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Thanks, Caroline! This is a great time. Nature and quality time, can't beat it!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yeah totally! They're priceless. Lucky you!"
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Woohoo Melanie! I passed the adoption agency interviews last Friday! I'm so excited and thankful. This is a big move towards my goal of having a family."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Congrats, Caroline! Adoption sounds awesome. I'm so happy for you. These figurines I bought yesterday remind me of family love. Tell me, what's your vision for the future?"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks so much, Melanie! It's beautiful! It really brings home how much love's in families - both blood and the ones we choose. I hope to build my own family and put a roof over kids who haven't had that before. For me, adoption is a way of giving back and showing love and acceptance."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Wow, Caroline, that's awesome. Giving a home to needy kids is such a loving way to build a family. Those kids will be so supported and happy in their new home."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie. My dream is to create a safe and loving home for these kids. Love and acceptance should be everyone's right, and I want them to experience it."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: I totally agree, Caroline. Everyone deserves that. It's awesome to see how passionate you are about helping these kids."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Mel. Finding self-acceptance was a long process, but now I'm ready to offer love and support to those who need it. It's empowering to make a positive difference in someone's life."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: That must have been tough for you, Caroline. Respect for finding acceptance and helping others with what you've been through. You're so strong and inspiring."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie. Transitioning wasn't easy and acceptance wasn't either, but the help I got from friends, family and people I looked up to was invaluable. They boosted me through tough times and helped me find out who I really am. That's why I want to pass that same support to anyone who needs it. Bringing others comfort and helping them grow brings me such joy."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: I'm so happy for you, Caroline. You found your true self and now you're helping others. You're so inspiring!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Thanks, Melanie. Your support really means a lot. This journey has been amazing and I'm grateful I get to share it and help others with theirs. It's a real gift."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Absolutely! I'm so glad we can always be there for each other."
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Glad you agree, Caroline. Appreciate the support of those close to me. Their encouragement made me who I am."
+        },
+        {
+          "role": "assistant",
+          "content": "[MELANIE]: Glad you had support. Being yourself is great!"
+        },
+        {
+          "role": "user",
+          "content": "[CAROLINE]: Yeah, that's true! It's so freeing to just be yourself and live honestly. We can really accept who we are and be content."
+        }
+      ]
+    ]
+  },
+  "question_types_seen": [
+    "adversarial",
+    "multi_hop",
+    "open_domain",
+    "single_hop",
+    "temporal_reasoning"
+  ],
+  "num_choices_seen": [
+    10
+  ],
+  "num_sessions_distribution": {
+    "19": 304,
+    "25": 196,
+    "28": 158,
+    "29": 502,
+    "30": 443,
+    "31": 190,
+    "32": 193
+  }
+}
